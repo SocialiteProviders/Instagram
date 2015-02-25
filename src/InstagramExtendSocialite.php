@@ -5,8 +5,13 @@ use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class InstagramExtendSocialite
 {
+    /**
+     * Execute the provider.
+     */
     public function handle(SocialiteWasCalled $socialiteWasCalled)
     {
-        $socialiteWasCalled->extendSocialite('instagram', __NAMESPACE__.'\Provider');
+        $socialiteWasCalled->extendSocialite(
+            'instagram', __NAMESPACE__.'\Provider'
+        );
     }
 }
