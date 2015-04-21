@@ -1,4 +1,5 @@
 <?php
+
 namespace SocialiteProviders\Instagram;
 
 use Laravel\Socialite\Two\AbstractProvider;
