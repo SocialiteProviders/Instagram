@@ -1,4 +1,5 @@
 <?php
+
 namespace SocialiteProviders\Instagram;
 
 use Laravel\Socialite\Two\AbstractProvider;
@@ -7,6 +8,11 @@ use Laravel\Socialite\Two\User;
 
 class Provider extends AbstractProvider implements ProviderInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    protected $scopeSeparator = ' ';
+
     /**
      * {@inheritdoc}
      */
