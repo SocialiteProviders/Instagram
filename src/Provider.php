@@ -41,14 +41,14 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $response = json_decode($this->getHttpClient()->get(
+        $response = $this->getHttpClient()->get(
             'https://api.instagram.com/v1/users/self?access_token='.$token, [
             'headers' => [
                 'Accept' => 'application/json',
             ],
-        ])->getBody()->getContents(), true);
+        ]);
 
-        return $response['data'];
+        return json_decode($response->getBody()->getContents(), true)['data'];
     }
 
     /**
@@ -69,10 +69,10 @@ class Provider extends AbstractProvider implements ProviderInterface
     public function getAccessToken($code)
     {
         $response = $this->getHttpClient()->post($this->getTokenUrl(), [
-            'body' => http_build_query($this->getTokenFields($code)),
+            'form_params' => $this->getTokenFields($code),
         ]);
 
-        return $this->parseAccessToken($response->getBody());
+        return $this->parseAccessToken($response->getBody()->getContents());
     }
 
     /**
