@@ -14,23 +14,51 @@ class Provider extends AbstractProvider implements ProviderInterface
     const IDENTIFIER = 'INSTAGRAM';
 
     /**
-     * {@inheritdoc}
+     * The base Facebook Graph URL, which Instagram nowadays uses.
+     *
+     * @var string
      */
-    protected $scopeSeparator = ' ';
+    protected $graphUrl = 'https://graph.facebook.com';
+
+    /**
+     * The Graph API version for the request.
+     *
+     * @var string
+     */
+    protected $version = 'v3.0';
+
+    /**
+     * The user fields being requested.
+     *
+     * @var array
+     */
+    protected $fields = ['name', 'email', 'gender', 'verified', 'link'];
 
     /**
      * {@inheritdoc}
      */
-    protected $scopes = ['basic'];
+    protected $scopes = ['instagram_basic'];
 
+    /**
+     * Display the dialog in a popup view.
+     *
+     * @var bool
+     */
+    protected $popup = false;
+
+    /**
+     * Re-request a declined permission.
+     *
+     * @var bool
+     */
+    protected $reRequest = false;
+    
     /**
      * {@inheritdoc}
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase(
-            'https://api.instagram.com/oauth/authorize', $state
-        );
+        return $this->buildAuthUrlFromBase('https://www.facebook.com/'.$this->version.'/dialog/oauth', $state);
     }
 
     /**
@@ -38,7 +66,23 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getTokenUrl()
     {
-        return 'https://api.instagram.com/oauth/access_token';
+        return $this->graphUrl.'/'.$this->version.'/oauth/access_token';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAccessTokenResponse($code)
+    {
+        $postKey = (version_compare(ClientInterface::VERSION, '6') === 1) ? 'form_params' : 'body';
+
+        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
+            $postKey => $this->getTokenFields($code),
+        ]);
+
+        $data = json_decode($response->getBody(), true);
+
+        return Arr::add($data, 'expires_in', Arr::pull($data, 'expires'));
     }
 
     /**
@@ -46,22 +90,21 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $endpoint = '/users/self';
-        $query = [
-            'access_token' => $token,
-        ];
-        $signature = $this->generateSignature($endpoint, $query);
+        $meUrl = $this->graphUrl.'/'.$this->version.'/me?access_token='.$token.'&fields='.implode(',', $this->fields);
 
-        $query['sig'] = $signature;
-        $response = $this->getHttpClient()->get(
-            'https://api.instagram.com/v1/users/self', [
-            'query'   => $query,
+        if (!empty($this->clientSecret)) {
+            $appSecretProof = hash_hmac('sha256', $token, $this->clientSecret);
+
+            $meUrl .= '&appsecret_proof='.$appSecretProof;
+        }
+
+        $response = $this->getHttpClient()->get($meUrl, [
             'headers' => [
                 'Accept' => 'application/json',
             ],
         ]);
 
-        return json_decode($response->getBody()->getContents(), true)['data'];
+        return json_decode($response->getBody(), true);
     }
 
     /**
@@ -69,49 +112,69 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function mapUserToObject(array $user)
     {
+        $avatarUrl = $this->graphUrl.'/'.$this->version.'/'.$user['id'].'/picture';
+
         return (new User())->setRaw($user)->map([
-            'id'     => $user['id'], 'nickname' => $user['username'],
-            'name'   => $user['full_name'], 'email' => null,
-            'avatar' => $user['profile_picture'],
+            'id' => $user['id'], 'nickname' => null, 'name' => isset($user['name']) ? $user['name'] : null,
+            'email' => isset($user['email']) ? $user['email'] : null, 'avatar' => $avatarUrl.'?type=normal',
+            'avatar_original' => $avatarUrl.'?width=1920',
+            'profileUrl' => isset($user['link']) ? $user['link'] : null,
         ]);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getAccessToken($code)
+    protected function getCodeFields($state = null)
     {
-        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
-            'form_params' => $this->getTokenFields($code),
-        ]);
+        $fields = parent::getCodeFields($state);
 
-        $this->credentialsResponseBody = json_decode($response->getBody(), true);
-
-        return $this->parseAccessToken($response->getBody());
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function getTokenFields($code)
-    {
-        return array_merge(parent::getTokenFields($code), [
-            'grant_type' => 'authorization_code',
-        ]);
-    }
-
-    /**
-     * Allows compatibility for signed API requests.
-     */
-    protected function generateSignature($endpoint, array $params)
-    {
-        $sig = $endpoint;
-        ksort($params);
-        foreach ($params as $key => $val) {
-            $sig .= "|$key=$val";
+        if ($this->popup) {
+            $fields['display'] = 'popup';
         }
-        $signing_key = $this->clientSecret;
 
-        return hash_hmac('sha256', $sig, $signing_key, false);
+        if ($this->reRequest) {
+            $fields['auth_type'] = 'rerequest';
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Set the user fields to request from Instagram.
+     *
+     * @param array $fields
+     *
+     * @return $this
+     */
+    public function fields(array $fields)
+    {
+        $this->fields = $fields;
+
+        return $this;
+    }
+
+    /**
+     * Set the dialog to be displayed as a popup.
+     *
+     * @return $this
+     */
+    public function asPopup()
+    {
+        $this->popup = true;
+
+        return $this;
+    }
+
+    /**
+     * Re-request permissions which were previously declined.
+     *
+     * @return $this
+     */
+    public function reRequest()
+    {
+        $this->reRequest = true;
+
+        return $this;
     }
 }
