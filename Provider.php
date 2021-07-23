@@ -27,10 +27,7 @@ class Provider extends AbstractProvider
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase(
-            'https://api.instagram.com/oauth/authorize',
-            $state
-        );
+       return 'https://api.instagram.com/oauth/authorize?hl=en&'.ltrim($this->buildAuthUrlFromBase("", $state),"?");
     }
 
     /**
