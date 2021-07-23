@@ -1,7 +1,11 @@
+Fork официального пакета socialiteproviders/instagram
+
+В нем исправлена вторизация не английскх аккаунтов
+
 # Instagram
 
 ```bash
-composer require socialiteproviders/instagram
+composer require vdkar/instagram
 ```
 
 ## Installation & Basic Usage
