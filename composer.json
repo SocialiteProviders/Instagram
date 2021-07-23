@@ -1,6 +1,6 @@
 {
-    "name": "socialiteproviders/instagram",
-    "description": "Instagram OAuth2 Provider for Laravel Socialite",
+    "name": "vdkar/instagram",
+    "description": "New",
     "license": "MIT",
     "authors": [
         {
@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-4": {
-            "SocialiteProviders\\Instagram\\": ""
+            "vdkar\\Instagram\\": ""
         }
     }
 }
