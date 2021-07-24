@@ -1,6 +1,6 @@
 <?php
 
-namespace SocialiteProviders\Instagram;
+namespace vdkar\Instagram;
 
 use SocialiteProviders\Manager\OAuth2\AbstractProvider;
 use SocialiteProviders\Manager\OAuth2\User;
