@@ -41,7 +41,7 @@ class Provider extends AbstractProvider
     /**
      * {@inheritdoc}
      */
-    protected $scopes = ['instagram_basic'];
+    protected $scopes = ['instagram_business_basic'];
 
     /**
      * {@inheritdoc}
