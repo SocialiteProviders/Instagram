@@ -3,32 +3,78 @@
 namespace SocialiteProviders\Instagram;
 
 use GuzzleHttp\RequestOptions;
+use Illuminate\Support\Arr;
 use SocialiteProviders\Manager\OAuth2\AbstractProvider;
 use SocialiteProviders\Manager\OAuth2\User;
 
+/**
+ * Instagram OAuth2 Provider
+ *
+ * @see https://developers.facebook.com/docs/instagram-basic-display-api
+ */
 class Provider extends AbstractProvider
 {
     public const IDENTIFIER = 'INSTAGRAM';
 
+    /**
+     * {@inheritdoc}
+     */
     protected $scopeSeparator = ' ';
 
     /**
      * The user fields being requested.
      *
-     * @var array
+     * @var array<string>
      */
-    protected $fields = ['account_type', 'id', 'username', 'media_count'];
+    protected $fields = [
+        'id',
+        'user_id',
+        'username',
+        'name',
+        'account_type',
+        'profile_picture_url',
+        'followers_count',
+        'follows_count',
+        'media_count',
+    ];
 
-    protected $scopes = ['user_profile'];
+    /**
+     * {@inheritdoc}
+     */
+    protected $scopes = ['instagram_basic'];
 
+    /**
+     * {@inheritdoc}
+     */
     protected function getAuthUrl($state): string
     {
         return $this->buildAuthUrlFromBase('https://api.instagram.com/oauth/authorize', $state);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     protected function getTokenUrl(): string
     {
         return 'https://api.instagram.com/oauth/access_token';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function parseApprovedScopes($body)
+    {
+        $scopesRaw = Arr::get($body, 'permissions', null);
+
+        if (! is_array($scopesRaw) && ! is_string($scopesRaw)) {
+            return [];
+        }
+
+        if (is_array($scopesRaw)) {
+            return $scopesRaw;
+        }
+
+        return explode($this->scopeSeparator, (string) Arr::get($body, 'permissions', ''));
     }
 
     /**
@@ -61,13 +107,21 @@ class Provider extends AbstractProvider
     protected function mapUserToObject(array $user)
     {
         return (new User)->setRaw($user)->map([
-            'id'            => $user['id'],
-            'name'          => $user['username'],
-            'account_type'  => $user['account_type'],
-            'media_count'   => $user['media_count'] ?? null,
+            'id' => $user['id'] ?? null,
+            'user_id' => $user['user_id'] ?? null,
+            'nickname' => $user['username'] ?? null,
+            'name' => $user['name'] ?? null,
+            'account_type' => $user['account_type'] ?? null,
+            'avatar' => $user['profile_picture_url'] ?? null,
+            'followers_count' => $user['followers_count'] ?? null,
+            'follows_count' => $user['follows_count'] ?? null,
+            'media_count' => $user['media_count'] ?? null,
         ]);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getAccessToken($code)
     {
         $response = $this->getHttpClient()->post($this->getTokenUrl(), [
@@ -77,5 +131,15 @@ class Provider extends AbstractProvider
         $this->credentialsResponseBody = json_decode((string) $response->getBody(), true);
 
         return $this->parseAccessToken($response->getBody());
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function getTokenFields($code)
+    {
+        return array_merge(parent::getTokenFields($code), [
+            'grant_type' => 'authorization_code',
+        ]);
     }
 }
